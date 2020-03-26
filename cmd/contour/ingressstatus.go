@@ -21,15 +21,16 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-// ingressStatusWriter manages the lifetime of StatusLoadBalancerUpdaters.
+// ingressStatusWriter manages the lifetime of IngressStatusUpdaters.
 //
 // The theory of operation of the ingressStatusWriter is as follows:
 // 1. On startup the ingressStatusWriter waits to be elected leader.
 // 2. Once elected leader, the ingressStatusWriter waits to receive a
 //    v1.LoadBalancerStatus value.
 // 3. Once a v1.LoadBalancerStatus value has been received, any existing informer
-//    is stopped and a new informer started in its place.
-// 4. Each informer is connected to a k8s.StatusLoadBalancerUpdater which reacts to
+//    is stopped and a new informer started in its place. This ensures that all existing
+//    Ingress objects will have OnAdd events fired to the new event handler.
+// 4. Each informer is connected to a k8s.IngressStatusUpdater which reacts to
 //    OnAdd events for networking.k8s.io/ingress.v1beta1 objects. For each OnAdd
 //    the object is patched with the v1.LoadBalancerStatus value obtained on creation.
 //    OnUpdate and OnDelete events are ignored.If a new v1.LoadBalancerStatus value
@@ -75,8 +76,8 @@ func (isw *ingressStatusWriter) Start(stop <-chan struct{}) error {
 			// create informer for the new LoadBalancerStatus
 			factory := isw.clients.NewInformerFactory()
 			inf := factory.Networking().V1beta1().Ingresses().Informer()
-			log := isw.log.WithField("context", "IngressStatusLoadBalancerUpdater")
-			inf.AddEventHandler(&k8s.StatusLoadBalancerUpdater{
+			log := isw.log.WithField("context", "IngressStatusUpdater")
+			inf.AddEventHandler(&k8s.IngressStatusUpdater{
 				Client: isw.clients.ClientSet(),
 				Logger: log,
 				Status: lbs,
